@@ -10,7 +10,12 @@ else
 USB_DEVICE = /dev/ttyUSB0
 endif
 
+ifeq ($(FROMRAM),1)
+LSCRIPT=core/stm32_ram.ld
+else
 LSCRIPT=core/stm32_flash.ld
+endif 
+
 
 OPTIMIZATION = -O2
 DEBUG = -g
