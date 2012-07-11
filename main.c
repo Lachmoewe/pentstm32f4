@@ -34,7 +34,7 @@ int main(void)
 
 	RCC_GetClocksFreq(&RCC_Clocks);
 	/* SysTick end of count event each 0.1ms */
-	SysTick_Config(RCC_Clocks.HCLK_Frequency / 10000);
+	SysTick_Config(RCC_Clocks.HCLK_Frequency / 1000000);
 
 	/* Initialyse Matrix */
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOA, ENABLE);
@@ -97,11 +97,11 @@ int main(void)
 
 
 
-
+	int sound=2;
 	while (1)
 	{
 		/* Insert delay */
-		Delay(1);	
+		Delay(sound);	
 		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
 		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_OUT;
 		GPIO_InitStructure.GPIO_OType = GPIO_OType_PP;
@@ -109,7 +109,7 @@ int main(void)
 		GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 		GPIO_Init(GPIOE, &GPIO_InitStructure);
 		GPIO_ResetBits(GPIOE, GPIO_Pin_5);
-		Delay(1);
+		Delay(sound/2);
 
 		GPIO_InitStructure.GPIO_Pin = GPIO_Pin_5;
 		GPIO_InitStructure.GPIO_Mode = GPIO_Mode_IN;
@@ -117,8 +117,11 @@ int main(void)
 		GPIO_InitStructure.GPIO_Speed = GPIO_Speed_100MHz;
 		GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 		GPIO_Init(GPIOE, &GPIO_InitStructure);
-
-
+		
+		sound++;
+		if (sound>=350) {
+			sound = 2;
+		}
 
 	}
 }
