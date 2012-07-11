@@ -39,7 +39,10 @@ GCFLAGS+= -ffreestanding -nostdlib -Wa,-adhlns=$(<:.c=.lst) -fno-math-errno
 GCFLAGS+=-ISTM32_DSP_Lib/inc
 GCFLAGS+=-ISTM32F4xx_StdPeriph_Driver/inc
 GCFLAGS+=-ISTM32F4xx_StdPeriph_Driver/inc/device_support
-GCFLAGS+=-ISTM32F4xx_StdPeriph_Driver/inc/core_support 
+GCFLAGS+=-ISTM32F4xx_StdPeriph_Driver/inc/core_support
+
+# platform lib
+#GCFLAGS+=-platform 
 
 #1803               <Define>ARM_MATH_CM4, ARM_MATH_MATRIX_CHECK, ARM_MATH_ROUNDING, __FPU_PRESENT = 1</Define>
 # -ffunction-sections -fdata-sections -fmessage-length=0   -fno-builtin
@@ -48,6 +51,7 @@ GCFLAGS+=-ISTM32F4xx_StdPeriph_Driver/inc/core_support
 LDFLAGS = -mcpu=cortex-m4 -mthumb $(OPTIMIZATION) -nostartfiles  -T$(LSCRIPT) 
 LDFLAGS+= -LSTM32F4xx_StdPeriph_Driver/build -lSTM32F4xx_StdPeriph_Driver
 LDFLAGS+= -LSTM32_DSP_Lib/build -lSTM32_DSP_Lib  
+#LDFLAGS+= -platform
 
 #  Compiler/Assembler Paths
 GCC = arm-none-eabi-gcc
