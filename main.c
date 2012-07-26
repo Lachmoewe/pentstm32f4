@@ -1,31 +1,47 @@
 #include "main.h"
 #include "arm_math.h" 
 #include "string.h"
-
+#include "font.h"
 
 // http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/DATASHEET/DM00037051.pdf
 // http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/REFERENCE_MANUAL/DM00031020.pdf
+#define LED_WIDTH 5
+#define LED_HEIGHT 5
 
 static __IO uint32_t TimingDelay;
 static __IO uint32_t tick;
 void Delay(__IO uint32_t nTime)
 {
-	TimingDelay = nTime*100;
+	TimingDelay = nTime*200;
 
 	while(TimingDelay != 0);
 }
 
 GPIO_InitTypeDef  GPIO_InitStructure;
-int buffer0[5][5] = { 	{1,2,3,4,5},
-			{6,7,8,9,10},
-			{11,12,13,14,15},
-			{0,15,0,15,0},
-			{15,0,15,0,15}};
-int buffer1[5][5] = { 	{1,0,1,0,1},
-			{0,1,0,1,0},
-			{1,0,1,0,1},
-			{0,1,0,1,0},
-			{1,0,1,0,1}};
+int buffer0[25]  = {
+			15,15,15,15,15,
+			15,15,15,15,15,
+			15,15,15,15,15,
+			15,15,15,15,15,
+			15,15,15,15,15
+};
+int buffer1[25]  = {
+			0,0,0,0,0,
+			0,0,0,0,0,
+			0,0,0,0,0,
+			0,0,0,0,0,
+			0,0,0,0,0
+};
+
+int *frontbuffer=buffer0;
+int *backbuffer=&buffer1[0];
+
+void buffer_flip(void) {
+	int f = frontbuffer;
+	frontbuffer=backbuffer;
+	backbuffer=f;
+}
+
 void line_off(int line) {
 	switch (line) {
 		case 0:	GPIO_SetBits(GPIOD, GPIO_Pin_0);
@@ -53,27 +69,29 @@ void line_on(int line) {
 	}
 }
 void line_pixel_on(int line) {
-	GPIO_WriteBit(GPIOB, GPIO_Pin_9, buffer0[line][4]!=0);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_7, buffer0[line][3]!=0);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_5, buffer0[line][2]!=0);
-	GPIO_WriteBit(GPIOD, GPIO_Pin_6, buffer0[line][1]!=0);
-	GPIO_WriteBit(GPIOD, GPIO_Pin_4, buffer0[line][0]!=0);
+	/*GPIO_WriteBit(GPIOB, GPIO_Pin_9, buffer0[line*5+4]!=0);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_7, buffer0[line*5+3]!=0);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_5, buffer0[line*5+2]!=0);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_6, buffer0[line*5+1]!=0);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_4, buffer0[line*5+0]!=0);
+	*/GPIO_WriteBit(GPIOB, GPIO_Pin_9, *(frontbuffer+line*5+4)!=0);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_7, *(frontbuffer+line*5+3)!=0);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_5, *(frontbuffer+line*5+2)!=0);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_6, *(frontbuffer+line*5+1)!=0);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_4, *(frontbuffer+line*5+0)!=0);
 
 }
 void line_pixel_off(int line, int brightness) {	
-	GPIO_WriteBit(GPIOB, GPIO_Pin_9, buffer0[line][4]>brightness);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_7, buffer0[line][3]>brightness);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_5, buffer0[line][2]>brightness);
-	GPIO_WriteBit(GPIOD, GPIO_Pin_6, buffer0[line][1]>brightness);
-	GPIO_WriteBit(GPIOD, GPIO_Pin_4, buffer0[line][0]>brightness);
-}
-int *frontbuffer=&buffer0[0];
-int *backbuffer=&buffer1[0];
-
-void buffer_flip(void) {
-	int f = frontbuffer;
-	frontbuffer=backbuffer;
-	backbuffer=f;
+	GPIO_WriteBit(GPIOB, GPIO_Pin_9, *(frontbuffer+line*5+4)>brightness);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_7, *(frontbuffer+line*5+3)>brightness);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_5, *(frontbuffer+line*5+2)>brightness);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_6, *(frontbuffer+line*5+1)>brightness);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_4, *(frontbuffer+line*5+0)>brightness);
+/*	GPIO_WriteBit(GPIOB, GPIO_Pin_9, buffer0[line*5+4]>brightness);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_7, buffer0[line*5+3]>brightness);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_5, buffer0[line*5+2]>brightness);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_6, buffer0[line*5+1]>brightness);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_4, buffer0[line*5+0]>brightness);*/
 }
 
 int line = 0;
@@ -196,13 +214,44 @@ void buzzer_off(void) {
 	GPIO_Init(GPIOE, &GPIO_InitStructure);
 	
 }
-
+void setLedXY(int x, int y, int brightness) {
+	*(backbuffer+x*5+y)=brightness;
+}
 int main(void)
 {
 	RCC_ClocksTypeDef RCC_Clocks;
 	RCC_GetClocksFreq(&RCC_Clocks);
-	SysTick_Config(RCC_Clocks.HCLK_Frequency / 200000);
-
 	LED_matrix_init();
-	while (1) ;
+	SysTick_Config(RCC_Clocks.HCLK_Frequency /200000);
+	char text2[] =" DON'T MESS WITH ME. ";
+
+	const uint8_t text_len2 = 21;
+
+	uint16_t pos2 = 0;
+
+	
+	while (1) {
+		//frontbuffer=buffer1;
+		//buffer0[3]=1;
+		//Delay(400);
+		//frontbuffer=buffer0;
+		//buffer0[3]=10;
+		Delay(200);
+		uint8_t x, y;
+
+
+		for(x = 0; x < LED_WIDTH; x++) {
+			uint16_t p = pos2 + x;
+			char c = text2[p / 4]; 
+			uint8_t bits = 0;
+			if((p & 3) < 3) bits =font[c - 32][p & 3]; 
+			for(y = 0; y < LED_HEIGHT; y++) {
+				setLedXY(x, y, 15 * (bits & 1));
+				bits >>= 1;
+			}   
+		}   
+		pos2++;
+		if(pos2 + LED_WIDTH == text_len2 * 4) pos2 = 0;
+		buffer_flip();
+	}
 }

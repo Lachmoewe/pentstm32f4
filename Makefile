@@ -17,8 +17,8 @@ LSCRIPT=core/stm32_flash.ld
 endif 
 
 
-OPTIMIZATION = -O2
-DEBUG = -g
+OPTIMIZATION = -O1
+DEBUG = -g -Wall
 
 #########################################################################
 
