@@ -10,10 +10,95 @@ static __IO uint32_t TimingDelay;
 static __IO uint32_t tick;
 void Delay(__IO uint32_t nTime)
 {
-	TimingDelay = nTime*10;
+	TimingDelay = nTime*100;
 
 	while(TimingDelay != 0);
 }
+
+GPIO_InitTypeDef  GPIO_InitStructure;
+int buffer0[5][5] = { 	{1,2,3,4,5},
+			{6,7,8,9,10},
+			{11,12,13,14,15},
+			{0,15,0,15,0},
+			{15,0,15,0,15}};
+int buffer1[5][5] = { 	{1,0,1,0,1},
+			{0,1,0,1,0},
+			{1,0,1,0,1},
+			{0,1,0,1,0},
+			{1,0,1,0,1}};
+void line_off(int line) {
+	switch (line) {
+		case 0:	GPIO_SetBits(GPIOD, GPIO_Pin_0);
+			break;
+		case 1:	GPIO_SetBits(GPIOC, GPIO_Pin_11);
+			break;
+		case 2:	GPIO_SetBits(GPIOA, GPIO_Pin_9);
+			break;
+		case 3:	GPIO_SetBits(GPIOC, GPIO_Pin_9);
+			break;
+		case 4:	GPIO_SetBits(GPIOC, GPIO_Pin_7);
+	} 
+}
+void line_on(int line) {
+	switch (line) {
+		case 0:	GPIO_ResetBits(GPIOD, GPIO_Pin_0);
+			break;
+		case 1:	GPIO_ResetBits(GPIOC, GPIO_Pin_11);
+			break;
+		case 2:	GPIO_ResetBits(GPIOA, GPIO_Pin_9);
+			break;
+		case 3:	GPIO_ResetBits(GPIOC, GPIO_Pin_9);
+			break;
+		case 4:	GPIO_ResetBits(GPIOC, GPIO_Pin_7);
+	}
+}
+void line_pixel_on(int line) {
+	GPIO_WriteBit(GPIOB, GPIO_Pin_9, buffer0[line][4]!=0);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_7, buffer0[line][3]!=0);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_5, buffer0[line][2]!=0);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_6, buffer0[line][1]!=0);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_4, buffer0[line][0]!=0);
+
+}
+void line_pixel_off(int line, int brightness) {	
+	GPIO_WriteBit(GPIOB, GPIO_Pin_9, buffer0[line][4]>brightness);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_7, buffer0[line][3]>brightness);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_5, buffer0[line][2]>brightness);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_6, buffer0[line][1]>brightness);
+	GPIO_WriteBit(GPIOD, GPIO_Pin_4, buffer0[line][0]>brightness);
+}
+int *frontbuffer=&buffer0[0];
+int *backbuffer=&buffer1[0];
+
+void buffer_flip(void) {
+	int f = frontbuffer;
+	frontbuffer=backbuffer;
+	backbuffer=f;
+}
+
+int line = 0;
+int step = 0;
+int stepmap[] = {
+	0,1,2,3,4,5,0,0,6,0,0,
+	7,0,0,0,0,8,0,0,0,0,
+	0,0,0,9,0,0,0,0,0,0,
+	0,0,0,10,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,11,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,12,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,13,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	14,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0,0,
+	0,0,0,0,0,0,0,0,0};
 
 void TimingDelay_Decrement(void)
 {
@@ -22,9 +107,22 @@ void TimingDelay_Decrement(void)
 		TimingDelay--;
 	}
 	tick++;
-}
 
-GPIO_InitTypeDef  GPIO_InitStructure;
+	step++;
+	if (step==200) {
+		step=0;
+		line_off(line);
+		line++;
+		if (line == 5) {
+			line=0;
+		}
+		line_pixel_on(line);
+		line_on(line);
+	} 
+	if (stepmap[step]!=0) {
+		line_pixel_off(line,stepmap[step]);
+	}
+}
 
 
 void LED_matrix_init(void) {
@@ -62,6 +160,11 @@ void LED_matrix_init(void) {
 	GPIO_InitStructure.GPIO_PuPd = GPIO_PuPd_NOPULL;
 	GPIO_Init(GPIOD, &GPIO_InitStructure);
 	
+	GPIO_SetBits(GPIOD, GPIO_Pin_0);
+	GPIO_SetBits(GPIOC, GPIO_Pin_11|GPIO_Pin_9|GPIO_Pin_7);
+	GPIO_SetBits(GPIOA, GPIO_Pin_9);
+	GPIO_ResetBits(GPIOB, GPIO_Pin_5);
+
 	//   D0  C11 A9  C9  C7
 	//B9  x   x   x   x   x
 	//B7  x   x   x   x   x
@@ -69,67 +172,7 @@ void LED_matrix_init(void) {
 	//D6  x   x   x   x   x
 	//D4  x   x   x   x   x
 }
-void LED_matrix_setX(int x, int value) {
-	uint16_t pin;
-	GPIO_TypeDef *group;
-	switch (x) {
-		case 0:	group=GPIOD;
-			pin=GPIO_Pin_0;
-			break;
-		case 1:	group=GPIOC;
-			pin=GPIO_Pin_11;
-			break;
-		case 2:	group=GPIOA;
-			pin=GPIO_Pin_9;
-			break;
-		case 3:	group=GPIOC;
-			pin=GPIO_Pin_9;
-			break;
-		case 4:	group=GPIOC;
-			pin=GPIO_Pin_7;
-	}
-	if (value) {
-		GPIO_ResetBits(group, pin);
-	} else {
-		GPIO_SetBits(group, pin);
-	}
-}
-void LED_matrix_setY(int y, int line[]) {
-	GPIO_ResetBits(GPIOB, GPIO_Pin_9|GPIO_Pin_7|GPIO_Pin_5);
-	GPIO_ResetBits(GPIOD, GPIO_Pin_6|GPIO_Pin_4);
-	GPIO_SetBits(GPIOD, GPIO_Pin_0);
-	GPIO_SetBits(GPIOC, GPIO_Pin_11|GPIO_Pin_9|GPIO_Pin_7);
-	GPIO_SetBits(GPIOA, GPIO_Pin_9);
-	switch (y) {
-		case 0:	GPIO_SetBits(GPIOB, GPIO_Pin_9);
-			break;
-		case 1:	GPIO_SetBits(GPIOB, GPIO_Pin_7);
-			break;
-		case 2:	GPIO_SetBits(GPIOB, GPIO_Pin_5);
-			break;
-		case 3: GPIO_SetBits(GPIOD, GPIO_Pin_6);
-			break;
-		case 4:	GPIO_SetBits(GPIOD, GPIO_Pin_4);
-	}
-	int i=0;
-	while (i<=4) {
-		LED_matrix_setX(i,line[i]);
-		i++;
-	}
-	//delay(10);
-}
-void LED_matrix_draw(int image[], int treshold) {
-	while (treshold>0) {
-		int i=0;
-		while(i<5) {
-			LED_matrix_setY(i,&image[i*5]);
-			i++;
-			Delay(2);
-		}
-		treshold--;
-	}
-	
-}
+
 void buzzer_init(void) {
 	/*Buzzer!*/	
 	RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOE, ENABLE);
@@ -157,46 +200,9 @@ void buzzer_off(void) {
 int main(void)
 {
 	RCC_ClocksTypeDef RCC_Clocks;
-
-
-
 	RCC_GetClocksFreq(&RCC_Clocks);
-	/* SysTick end of count event each 0.1ms */
-	SysTick_Config(RCC_Clocks.HCLK_Frequency / 10000);
-
+	SysTick_Config(RCC_Clocks.HCLK_Frequency / 200000);
 
 	LED_matrix_init();
-	int image1[]={	1,1,1,1,0,
-			1,1,1,1,0,
-			1,1,1,1,0,
-			1,1,1,1,0,
-			1,1,1,1,0};
-	int image2[]={	1,1,1,0,1,
-			1,1,1,0,1,
-			1,1,1,0,1,
-			1,1,1,0,1,
-			1,1,1,0,1};
-	int image3[]={	1,1,0,1,1,
-			1,1,0,1,1,
-			1,1,0,1,1,
-			1,1,0,1,1,
-			1,1,0,1,1};
-	int image4[]={	1,0,1,1,1,
-			1,0,1,1,1,
-			1,0,1,1,1,
-			1,0,1,1,1,
-			1,0,1,1,1};
-	int image5[]={	0,1,1,1,1,
-			0,1,1,1,1,
-			0,1,1,1,1,
-			0,1,1,1,1,
-			0,1,1,1,1};
-	while (1)
-	{
-		LED_matrix_draw(image1,10);
-		LED_matrix_draw(image2,10);
-		LED_matrix_draw(image3,10);
-		LED_matrix_draw(image4,10);
-		LED_matrix_draw(image5,10);
-	}
+	while (1) ;
 }
