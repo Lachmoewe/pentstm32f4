@@ -19,18 +19,18 @@ void Delay(__IO uint32_t nTime)
 
 GPIO_InitTypeDef  GPIO_InitStructure;
 int buffer0[25]  = {
-			15,15,15,15,15,
-			15,15,15,15,15,
-			15,15,15,15,15,
-			15,15,15,15,15,
-			15,15,15,15,15
+			15, 0,15, 0,15,
+			 0,15, 0,15, 0,
+			15, 0,15, 0,15,
+			 0,15, 0,15, 0,
+			15, 0,15, 0,15
 };
 int buffer1[25]  = {
-			0,0,0,0,0,
-			0,0,0,0,0,
-			0,0,0,0,0,
-			0,0,0,0,0,
-			0,0,0,0,0
+			 0,15, 0,15, 0,
+			15, 0,15, 0,15,
+			 0,15, 0,15, 0,
+			15, 0,15, 0,15,
+			 0,15, 0,15, 0
 };
 
 int *frontbuffer=buffer0;
@@ -217,26 +217,59 @@ void buzzer_off(void) {
 void setLedXY(int x, int y, int brightness) {
 	*(backbuffer+x*5+y)=brightness;
 }
-int main(void)
-{
-	RCC_ClocksTypeDef RCC_Clocks;
-	RCC_GetClocksFreq(&RCC_Clocks);
-	LED_matrix_init();
-	SysTick_Config(RCC_Clocks.HCLK_Frequency /200000);
-	char text2[] =" DON'T MESS WITH ME. ";
+void draw_rect(startx,starty,endx,endy,col) {
+	//while(startx<=endx) {
+	//	while (starty<=endy) {
+	//		setLedXY(startx, starty, col);
+	//		starty++;
+	//	}
+	//	startx++;
+	//}
+	for(startx = 0; startx <= endx; startx++) {
+		for(starty = 0; starty <= endy; starty++) {
+			setLedXY(startx, starty, col);
+		}   
+	}   
+}
+void startsequence(void) {
+	int initshit_counter=0;
+	buzzer_on();
+	Delay(100);
+	buzzer_off();
+	while (initshit_counter<=4) {
+		Delay(200);
+		buffer_flip();
+		initshit_counter++;
+	}
+	
+	draw_rect(0,0,4,4,0);
+	Delay(200);
+	buffer_flip();
+	Delay(200);
+	int i;
+	for(i=0; i<(LED_WIDTH*LED_HEIGHT); i++) {
+		draw_rect(0,0,4,4,0);
+		setLedXY(i%LED_WIDTH, LED_HEIGHT-i/LED_HEIGHT-1, 15);
+		buffer_flip();
+		Delay(50);
+	}
+	draw_rect(0,0,4,4,0);
+	buffer_flip();
+	Delay(200);
+}
+void draw_text(char text2[], uint8_t text_len2) {
 
-	const uint8_t text_len2 = 21;
+	//char text2[] =" Hello World! ";
+	//const uint8_t text_len2 = 14;
 
 	uint16_t pos2 = 0;
-
-	
-	while (1) {
+	int run = 1;
+	while (run) {
 		//frontbuffer=buffer1;
 		//buffer0[3]=1;
 		//Delay(400);
 		//frontbuffer=buffer0;
 		//buffer0[3]=10;
-		Delay(200);
 		uint8_t x, y;
 
 
@@ -251,7 +284,24 @@ int main(void)
 			}   
 		}   
 		pos2++;
-		if(pos2 + LED_WIDTH == text_len2 * 4) pos2 = 0;
+		if(pos2 + LED_WIDTH == text_len2 * 4) {
+			pos2 = 0;
+			run=0;
+		}
+		Delay(200);
 		buffer_flip();
+	}
+}
+int main(void)
+{
+	RCC_ClocksTypeDef RCC_Clocks;
+	RCC_GetClocksFreq(&RCC_Clocks);
+	LED_matrix_init();
+	buzzer_init();
+	SysTick_Config(RCC_Clocks.HCLK_Frequency /200000);
+	startsequence();
+	while (1) {
+		draw_text(" Hello World! ", 14);
+		draw_text(" what's up? ", 12); 
 	}
 }
