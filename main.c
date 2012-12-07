@@ -2,11 +2,18 @@
 #include "arm_math.h" 
 #include "string.h"
 #include "font.h"
+#include <stdlib.h>
+#include "string.h"
 
 // http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/DATASHEET/DM00037051.pdf
 // http://www.st.com/internet/com/TECHNICAL_RESOURCES/TECHNICAL_LITERATURE/REFERENCE_MANUAL/DM00031020.pdf
 #define LED_WIDTH 5
 #define LED_HEIGHT 5
+
+
+
+
+
 
 static __IO uint32_t TimingDelay;
 static __IO uint32_t tick;
@@ -18,6 +25,10 @@ void Delay(__IO uint32_t nTime)
 }
 
 GPIO_InitTypeDef  GPIO_InitStructure;
+void init_rand() {
+	RCC_AHB2PeriphClockCmd(RCC_AHB2Periph_RNG, ENABLE);
+	RNG_Cmd(ENABLE);
+}
 int buffer0[25]  = {
 			15, 0,15, 0,15,
 			 0,15, 0,15, 0,
@@ -39,8 +50,13 @@ int *backbuffer=&buffer1[0];
 void buffer_flip(void) {
 	int f = frontbuffer;
 	frontbuffer=backbuffer;
-	backbuffer=f;
+	backbuffer=f;   // TODO maybe we don't need this?
+	// why would you need the frontbuffer to be back in backbuffer?
+	// for this case we now have buffer_push()
 }
+/*void buffer_push(void) {
+	frontbuffer = backbuffer;
+}*/
 
 void line_off(int line) {
 	switch (line) {
@@ -69,12 +85,7 @@ void line_on(int line) {
 	}
 }
 void line_pixel_on(int line) {
-	/*GPIO_WriteBit(GPIOB, GPIO_Pin_9, buffer0[line*5+4]!=0);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_7, buffer0[line*5+3]!=0);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_5, buffer0[line*5+2]!=0);
-	GPIO_WriteBit(GPIOD, GPIO_Pin_6, buffer0[line*5+1]!=0);
-	GPIO_WriteBit(GPIOD, GPIO_Pin_4, buffer0[line*5+0]!=0);
-	*/GPIO_WriteBit(GPIOB, GPIO_Pin_9, *(frontbuffer+line*5+4)!=0);
+	GPIO_WriteBit(GPIOB, GPIO_Pin_9, *(frontbuffer+line*5+4)!=0);
 	GPIO_WriteBit(GPIOB, GPIO_Pin_7, *(frontbuffer+line*5+3)!=0);
 	GPIO_WriteBit(GPIOB, GPIO_Pin_5, *(frontbuffer+line*5+2)!=0);
 	GPIO_WriteBit(GPIOD, GPIO_Pin_6, *(frontbuffer+line*5+1)!=0);
@@ -87,11 +98,6 @@ void line_pixel_off(int line, int brightness) {
 	GPIO_WriteBit(GPIOB, GPIO_Pin_5, *(frontbuffer+line*5+2)>brightness);
 	GPIO_WriteBit(GPIOD, GPIO_Pin_6, *(frontbuffer+line*5+1)>brightness);
 	GPIO_WriteBit(GPIOD, GPIO_Pin_4, *(frontbuffer+line*5+0)>brightness);
-/*	GPIO_WriteBit(GPIOB, GPIO_Pin_9, buffer0[line*5+4]>brightness);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_7, buffer0[line*5+3]>brightness);
-	GPIO_WriteBit(GPIOB, GPIO_Pin_5, buffer0[line*5+2]>brightness);
-	GPIO_WriteBit(GPIOD, GPIO_Pin_6, buffer0[line*5+1]>brightness);
-	GPIO_WriteBit(GPIOD, GPIO_Pin_4, buffer0[line*5+0]>brightness);*/
 }
 
 int line = 0;
@@ -217,62 +223,88 @@ void buzzer_off(void) {
 void setLedXY(int x, int y, int brightness) {
 	*(backbuffer+x*5+y)=brightness;
 }
-void draw_rect(startx,starty,endx,endy,col) {
-	//while(startx<=endx) {
-	//	while (starty<=endy) {
-	//		setLedXY(startx, starty, col);
-	//		starty++;
-	//	}
-	//	startx++;
-	//}
-	for(startx = 0; startx <= endx; startx++) {
-		for(starty = 0; starty <= endy; starty++) {
-			setLedXY(startx, starty, col);
+int getLedXY_front(int x, int y) {
+	return *(frontbuffer+x*5+y);
+}
+int getLedXY_back(int x, int y) {
+	return *(backbuffer+x*5+y);
+}
+void draw_rect(int startx,int starty,int endx,int endy,int col) {
+	uint8_t x,y;
+	for(x=startx; x <= endx; x++) {
+		for(y=starty; y <= endy; y++) {
+			setLedXY(x, y, col);
 		}   
 	}   
 }
+/*int random(int salt) {
+	//int r = salt*tick;
+	//r=r+12;
+	//r=r*5/3;
+	return step*salt;
+}*/
+void draw_random() {
+	uint8_t x,y,col;
+	for (x=0; x<=LED_WIDTH; x++) {
+		for (y=0; y<=LED_HEIGHT; y++) {
+			col=RNG_GetRandomNumber() & 0x0f;
+			setLedXY(x,y,col);
+		}
+	}
+}
 void startsequence(void) {
+	init_rand();
 	int initshit_counter=0;
-	buzzer_on();
+	//buzzer_on();
 	Delay(100);
-	buzzer_off();
+	//buzzer_off();
 	while (initshit_counter<=4) {
 		Delay(200);
 		buffer_flip();
 		initshit_counter++;
 	}
-	
 	draw_rect(0,0,4,4,0);
 	Delay(200);
-	buffer_flip();
-	Delay(200);
-	int i;
+	uint8_t i,x,x1,x2,y,y1,y2;
+	x1=0;
+	x2=0;
+	y1=0;
+	y2=0;
 	for(i=0; i<(LED_WIDTH*LED_HEIGHT); i++) {
 		draw_rect(0,0,4,4,0);
-		setLedXY(i%LED_WIDTH, LED_HEIGHT-i/LED_HEIGHT-1, 15);
+		setLedXY(x2,y2, 8);
+		setLedXY(x1,y1,12);
+		y=LED_HEIGHT-i/LED_HEIGHT-1;
+		if (y%2) {
+			x=i%LED_WIDTH;
+		} else {
+			x=LED_WIDTH-i%LED_WIDTH-1;
+		}
+		setLedXY(x,y,15);
+		x2=x1;
+		y2=y1;
+		x1=x;
+		y1=y;
 		buffer_flip();
 		Delay(50);
 	}
 	draw_rect(0,0,4,4,0);
 	buffer_flip();
-	Delay(200);
+	int ran;
+	for(ran=1; ran<=30; ran++) {
+		Delay(10);
+		draw_random();
+		buffer_flip();
+	}
 }
-void draw_text(char text2[], uint8_t text_len2) {
+void draw_text(char text2[]) {
 
 	//char text2[] =" Hello World! ";
 	//const uint8_t text_len2 = 14;
-
+	uint8_t text_len2=strlen(text2);
 	uint16_t pos2 = 0;
-	int run = 1;
-	while (run) {
-		//frontbuffer=buffer1;
-		//buffer0[3]=1;
-		//Delay(400);
-		//frontbuffer=buffer0;
-		//buffer0[3]=10;
-		uint8_t x, y;
-
-
+	uint8_t x, y;
+	while (pos2 + LED_WIDTH != text_len2 * 4) {
 		for(x = 0; x < LED_WIDTH; x++) {
 			uint16_t p = pos2 + x;
 			char c = text2[p / 4]; 
@@ -284,10 +316,6 @@ void draw_text(char text2[], uint8_t text_len2) {
 			}   
 		}   
 		pos2++;
-		if(pos2 + LED_WIDTH == text_len2 * 4) {
-			pos2 = 0;
-			run=0;
-		}
 		Delay(200);
 		buffer_flip();
 	}
@@ -300,8 +328,49 @@ int main(void)
 	buzzer_init();
 	SysTick_Config(RCC_Clocks.HCLK_Frequency /200000);
 	startsequence();
-	while (1) {
-		draw_text(" Hello World! ", 14);
-		draw_text(" what's up? ", 12); 
+	draw_text(" Blubb "); 
+	//static void init_ball(void) ATTRIBUTES;
+	//static uint8_t tick_ball(void);
+#define BOFF            -1
+	static int8_t x = 2, y = 2; 
+	static int8_t dx = 1, dy = 1;
+	while(1) {
+		if(x == BOFF || x == LED_WIDTH - BOFF - 1) {
+			dx *= -1;
+		}
+		if(y == BOFF || y == LED_HEIGHT - BOFF - 1) {
+			dy *= -1;
+		}
+
+	
+		// move
+		x += dx; 
+		y += dy; 
+		 // display  
+		const uint8_t ball[3][3] = { 
+			{5, 10, 5},
+			{10, 15, 10},
+			{5, 10, 5}, 
+		};
+		int8_t tx=-2;	
+		for(tx <= 2; ++tx;) {
+			int8_t ty=-2;
+			for(ty <= 2; ++ty;) {
+				const int8_t ax = tx + x, 
+				      ay = ty + y; 
+				if(ax >= 0 && ay >= 0 && ax < LED_WIDTH && ay < LED_HEIGHT) {
+					uint8_t bright = 0;
+					if(abs(tx) <= 1 && abs(ty) <= 1) {   
+						bright = ball[tx+1][ty+1]; 
+					}
+					setLedXY(ax, ay, bright);
+				}
+			}
+		}
+		buffer_flip();
+		draw_rect(0,0,4,4,0);
+		Delay(50);
 	}
+
+	
 }
