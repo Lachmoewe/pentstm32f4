@@ -243,11 +243,11 @@ void draw_rect(int startx,int starty,int endx,int endy,int col) {
 	//r=r*5/3;
 	return step*salt;
 }*/
-void draw_random() {
+void draw_random(void) {
 	uint8_t x,y,col;
 	for (x=0; x<=LED_WIDTH; x++) {
 		for (y=0; y<=LED_HEIGHT; y++) {
-			col=RNG_GetRandomNumber() & 0x0f;
+			col=(RNG_GetRandomNumber() & 0x01)*15;
 			setLedXY(x,y,col);
 		}
 	}
@@ -291,8 +291,8 @@ void startsequence(void) {
 	draw_rect(0,0,4,4,0);
 	buffer_flip();
 	int ran;
-	for(ran=1; ran<=30; ran++) {
-		Delay(10);
+	for(ran=1; ran<=60; ran++) {
+		Delay(20);
 		draw_random();
 		buffer_flip();
 	}
@@ -320,6 +320,54 @@ void draw_text(char text2[]) {
 		buffer_flip();
 	}
 }
+void spiral(void) {
+	uint8_t posx = 2;						//current position
+	uint8_t posy = 2;
+	uint8_t dx = 1;												//to add
+	uint8_t dy = 0;
+	uint8_t cycle = 1;												//times to cycle
+	//uint8_t cy = 1;
+	uint8_t loopx=0;										//what loop are we in?
+	uint8_t loopy=0;										//i dont even know what im doing here
+	setLedXY(posx,posy,15);
+	uint8_t counter = 0;
+	uint8_t store;
+	while (counter < 3) {
+		while (loopx < cycle) {
+			posx += dx;
+			while (loopy < cycle) {
+				posy += dy;
+				loopy++;
+				setLedXY(posx,posy,15);
+				buffer_flip();
+				Delay(50);
+			}
+			loopy = 0;
+			loopx++;
+			store = dx;
+			dx = dy;
+			dy = store;
+		}
+		loopx = 0;
+		cycle++;
+		dx = -dx;
+		dy = -dy;
+		counter++;
+	}
+	/*+1, 0
+	 0,+1
+	-1, 0
+	-1, 0
+	 0,-1
+	 0,-1
+   1, 0
+	 1, 0
+	 1, 0*/
+
+
+}
+
+
 int main(void)
 {
 	RCC_ClocksTypeDef RCC_Clocks;
@@ -327,11 +375,25 @@ int main(void)
 	LED_matrix_init();
 	buzzer_init();
 	SysTick_Config(RCC_Clocks.HCLK_Frequency /200000);
-	startsequence();
-	draw_text(" Blubb "); 
+	//startsequence();
+	int ran;
+	while (1) {
+		//draw_text(" C3D2 Hardware Hacking Area ");
+	
+		draw_rect(0,0,4,4,8);	
+		Delay(100);
+		spiral();
+		/*for(ran=1; ran<=60; ran++) {
+			Delay(20);
+			draw_random();
+			buffer_flip();
+		}*/
+	}
+
+
 	//static void init_ball(void) ATTRIBUTES;
 	//static uint8_t tick_ball(void);
-#define BOFF            -1
+/*#define BOFF            -1
 	static int8_t x = 2, y = 2; 
 	static int8_t dx = 1, dy = 1;
 	while(1) {
@@ -371,6 +433,6 @@ int main(void)
 		draw_rect(0,0,4,4,0);
 		Delay(50);
 	}
-
+*/
 	
 }
